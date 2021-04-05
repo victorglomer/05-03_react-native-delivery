@@ -73,34 +73,71 @@ const FoodDetails: React.FC = () => {
 
   useEffect(() => {
     async function loadFood(): Promise<void> {
-      // Load a specific food with extras based on routeParams id
+      const response = await api.get(`foods/${routeParams.id}`);
+      setFood({
+        ...response.data,
+        formattedPrice: formatValue(response.data.price),
+      });
+      setExtras(
+        response.data.extras.map((extra: Extra) => ({
+          ...extra,
+          quantity: 0,
+        })),
+      );
+
+      const isFav = await api.get(`favorites/${routeParams.id}`);
+      if (isFav.status === 200) {
+        setIsFavorite(true);
+      }
     }
 
     loadFood();
   }, [routeParams]);
 
   function handleIncrementExtra(id: number): void {
-    // Increment extra quantity
+    const newextras = extras.map((extra: Extra) => ({
+      ...extra,
+      quantity: extra.id === id ? extra.quantity + 1 : extra.quantity,
+    }));
+    setExtras(newextras);
   }
 
   function handleDecrementExtra(id: number): void {
-    // Decrement extra quantity
+    const newextras = extras.map((extra: Extra) => ({
+      ...extra,
+      quantity:
+        extra.id === id && extra.quantity > 0
+          ? extra.quantity - 1
+          : extra.quantity,
+    }));
+    setExtras(newextras);
   }
 
   function handleIncrementFood(): void {
-    // Increment food quantity
+    setFoodQuantity(foodQuantity + 1);
   }
 
   function handleDecrementFood(): void {
-    // Decrement food quantity
+    if (foodQuantity > 1) {
+      setFoodQuantity(foodQuantity - 1);
+    }
   }
 
-  const toggleFavorite = useCallback(() => {
-    // Toggle if food is favorite or not
+  const toggleFavorite = useCallback(async () => {
+    if (isFavorite) {
+      await api.delete(`favorites/${routeParams.id}`);
+    } else {
+      await api.post(`favorites`, food);
+    }
+    setIsFavorite(!isFavorite);
   }, [isFavorite, food]);
 
   const cartTotal = useMemo(() => {
-    // Calculate cartTotal
+    const extraTotal = extras.reduce((accumulator, extra) => {
+      return accumulator + extra.quantity * extra.value;
+    }, 0);
+
+    return formatValue((extraTotal + food.price) * foodQuantity);
   }, [extras, food, foodQuantity]);
 
   async function handleFinishOrder(): Promise<void> {
